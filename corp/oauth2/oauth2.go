@@ -15,10 +15,10 @@ import (
 
 // 构造获取code的URL.
 //  corpId:      企业的CorpID
-//  redirectURL: 授权后重定向的回调链接地址, 员工点击后，页面将跳转至
-//               redirect_uri/?code=CODE&state=STATE，企业可根据code参数获得员工的userid。
-//  scope:       应用授权作用域，此时固定为：snsapi_base
-//  state:       重定向后会带上state参数，企业可以填写a-zA-Z0-9的参数值，长度不可超过128个字节
+//  redirectURL: 授权后重定向的回调链接地址, 员工点击后, 页面将跳转至
+//               redirect_uri/?code=CODE&state=STATE, 企业可根据code参数获得员工的userid.
+//  scope:       应用授权作用域, 此时固定为: snsapi_base
+//  state:       重定向后会带上state参数, 企业可以填写a-zA-Z0-9的参数值, 长度不可超过128个字节
 func AuthCodeURL(corpId, redirectURL, scope, state string) string {
 	return "https://open.weixin.qq.com/connect/oauth2/authorize" +
 		"?appid=" + url.QueryEscape(corpId) +
@@ -28,26 +28,10 @@ func AuthCodeURL(corpId, redirectURL, scope, state string) string {
 		"#wechat_redirect"
 }
 
-type Client struct {
-	corp.CorpClient
-}
+type Client corp.Client
 
-// 创建一个新的 Client.
-//  如果 HttpClient == nil 则默认用 http.DefaultClient
-func NewClient(TokenServer corp.TokenServer, HttpClient *http.Client) *Client {
-	if TokenServer == nil {
-		panic("TokenServer == nil")
-	}
-	if HttpClient == nil {
-		HttpClient = http.DefaultClient
-	}
-
-	return &Client{
-		CorpClient: corp.CorpClient{
-			TokenServer: TokenServer,
-			HttpClient:  HttpClient,
-		},
-	}
+func NewClient(srv corp.AccessTokenServer, clt *http.Client) *Client {
+	return (*Client)(corp.NewClient(srv, clt))
 }
 
 type UserInfo struct {
@@ -57,8 +41,8 @@ type UserInfo struct {
 
 // 根据code获取成员信息.
 //  agentId: 跳转链接时所在的企业应用ID
-//  code:    通过员工授权获取到的code，每次员工授权带上的code将不一样，
-//           code只能使用一次，5分钟未被使用自动过期
+//  code:    通过员工授权获取到的code, 每次员工授权带上的code将不一样,
+//           code只能使用一次, 5分钟未被使用自动过期
 func (clt *Client) UserInfo(agentId int64, code string) (info *UserInfo, err error) {
 	var result struct {
 		corp.Error
@@ -68,7 +52,7 @@ func (clt *Client) UserInfo(agentId int64, code string) (info *UserInfo, err err
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?agentid=" +
 		strconv.FormatInt(agentId, 10) + "&code=" + url.QueryEscape(code) +
 		"&access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*corp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 

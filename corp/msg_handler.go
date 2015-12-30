@@ -6,14 +6,13 @@
 package corp
 
 import (
-	"io"
 	"net/http"
 	"net/url"
 )
 
 // 微信服务器推送过来的消息(事件)处理接口
 type MessageHandler interface {
-	ServeMessage(w http.ResponseWriter, r *Request)
+	ServeMessage(http.ResponseWriter, *Request)
 }
 
 type MessageHandlerFunc func(http.ResponseWriter, *Request)
@@ -22,49 +21,28 @@ func (fn MessageHandlerFunc) ServeMessage(w http.ResponseWriter, r *Request) {
 	fn(w, r)
 }
 
-type httpResponseWriter struct {
-	io.Writer
-}
-
-func (httpResponseWriter) Header() http.Header {
-	return make(map[string][]string)
-}
-func (httpResponseWriter) WriteHeader(int) {}
-
-// 将 io.Writer 从语义上实现 http.ResponseWriter.
-//  某些 http 框架可能没有提供 http.ResponseWriter, 而只是提供了 io.Writer.
-func HttpResponseWriter(w io.Writer) http.ResponseWriter {
-	if rw, ok := w.(http.ResponseWriter); ok {
-		return rw
-	}
-	return httpResponseWriter{Writer: w}
-}
-
 // 消息(事件)请求信息
 type Request struct {
+	AgentToken string // 请求消息所属企业号应用的 Token
+
 	HttpRequest *http.Request // 可以为 nil, 因为某些 http 框架没有提供此参数
+	QueryValues url.Values    // 回调请求 URL 中的查询参数集合
 
-	// 下面的字段必须提供
-
-	QueryValues  url.Values // 回调请求 URL 中的查询参数集合
-	MsgSignature string     // 回调请求 URL 中的消息体签名: msg_signature
-	TimeStamp    int64      // 回调请求 URL 中的时间戳: timestamp
-	Nonce        string     // 回调请求 URL 中的随机数: nonce
+	MsgSignature string // 回调请求 URL 中的消息体签名: msg_signature
+	Timestamp    int64  // 回调请求 URL 中的时间戳: timestamp
+	Nonce        string // 回调请求 URL 中的随机数: nonce
 
 	RawMsgXML []byte        // 消息的"明文"XML 文本
 	MixedMsg  *MixedMessage // RawMsgXML 解析后的消息
 
-	AESKey [32]byte // 当前消息 AES 加密的 key
-	Random []byte   // 当前消息加密时所用的 random, 16 bytes
-
-	// 下面字段是企业号应用的基本信息
-	CorpId     string // 请求消息所属企业号的 ID
-	AgentId    int64  // 请求消息所属企业号应用的 ID
-	AgentToken string // 请求消息所属企业号应用的 Token
+	AESKey  [32]byte // 当前消息 AES 加密的 key
+	Random  []byte   // 当前消息加密时所用的 random, 16 bytes
+	CorpId  string   // 当前消息的企业号ID
+	AgentId int64    // 当前消息的应用ID
 }
 
 // 微信服务器推送过来的消息(事件)通用的消息头
-type CommonMessageHeader struct {
+type MessageHeader struct {
 	ToUserName   string `xml:"ToUserName"   json:"ToUserName"`
 	FromUserName string `xml:"FromUserName" json:"FromUserName"`
 	CreateTime   int64  `xml:"CreateTime"   json:"CreateTime"`
@@ -75,7 +53,7 @@ type CommonMessageHeader struct {
 // 微信服务器推送过来的消息(事件)的合集.
 type MixedMessage struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	CommonMessageHeader
+	MessageHeader
 
 	MsgId int64 `xml:"MsgId" json:"MsgId"`
 
@@ -109,7 +87,7 @@ type MixedMessage struct {
 		LocationY float64 `xml:"Location_Y" json:"Location_Y"`
 		Scale     int     `xml:"Scale"      json:"Scale"`
 		Label     string  `xml:"Label"      json:"Label"`
-		Poiname   string  `xml:"Poiname"    json:"Poiname"`
+		PoiName   string  `xml:"Poiname"    json:"Poiname"`
 	} `xml:"SendLocationInfo" json:"SendLocationInfo"`
 
 	Latitude  float64 `xml:"Latitude"    json:"Latitude"`

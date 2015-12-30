@@ -9,8 +9,9 @@ import (
 	"github.com/chanxuehong/wechat/corp/jssdk"
 )
 
-var TokenServer = corp.NewDefaultTokenServer("corpId", "corpSecret", nil)
-var TicketServer = jssdk.NewDefaultTicketServer(TokenServer, nil)
+var AccessTokenServer = corp.NewDefaultAccessTokenServer("corpId", "corpSecret", nil)
+var CorpClient = corp.NewClient(AccessTokenServer, nil)
+var TicketServer = jssdk.NewDefaultTicketServer(CorpClient)
 
 func main() {
 	fmt.Println(TicketServer.Ticket())

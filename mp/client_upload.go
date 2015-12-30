@@ -18,6 +18,13 @@ import (
 	"reflect"
 )
 
+type MultipartFormField struct {
+	ContentType int // 0:文件field, 1:普通的文本field
+	FieldName   string
+	FileName    string // ContentType == 0 时有效
+	Value       io.Reader
+}
+
 // 通用上传接口.
 //
 //  --BOUNDARY
@@ -35,37 +42,36 @@ import (
 //  NOTE:
 //  1. 一般不需要调用这个方法, 请直接调用高层次的封装方法;
 //  2. 最终的 URL == incompleteURL + access_token;
-//  3. part1 是一个文件, part2 是普通的字符串(如果不需要 part2 则把 part2FieldName 留空);
-//  4. response 要求是 struct 的指针, 并且该 struct 拥有属性:
-//     ErrCode int `json:"errcode"` (可以是直接属性, 也可以是匿名属性里的属性)
-func (clt *WechatClient) UploadFromReader(incompleteURL,
-	part1FieldName, part1FileName string, part1ValueReader io.Reader,
-	part2FieldName string, part2Value []byte,
-	response interface{}) (err error) {
-
-	// 构造 multipart/form-data, 存入一个字节数组里
-
+//  3. response 格式有要求, 要么是 *Error, 要么是下面结构体的指针(注意 Error 必须是第一个 Field):
+//      struct {
+//          Error
+//          ...
+//      }
+func (clt *Client) PostMultipartForm(incompleteURL string, fields []MultipartFormField, response interface{}) (err error) {
 	bodyBuf := mediaBufferPool.Get().(*bytes.Buffer)
 	bodyBuf.Reset()
 	defer mediaBufferPool.Put(bodyBuf)
 
 	multipartWriter := multipart.NewWriter(bodyBuf)
 
-	part1Writer, err := multipartWriter.CreateFormFile(part1FieldName, part1FileName)
-	if err != nil {
-		return
-	}
-	if _, err = io.Copy(part1Writer, part1ValueReader); err != nil {
-		return
-	}
-
-	if part2FieldName != "" && len(part2Value) > 0 {
-		part2Writer, err := multipartWriter.CreateFormField(part2FieldName)
-		if err != nil {
-			return err
-		}
-		if _, err = part2Writer.Write(part2Value); err != nil {
-			return err
+	for _, field := range fields {
+		switch field.ContentType {
+		case 0: // 文件
+			partWriter, err := multipartWriter.CreateFormFile(field.FieldName, field.FileName)
+			if err != nil {
+				return err
+			}
+			if _, err = io.Copy(partWriter, field.Value); err != nil {
+				return err
+			}
+		case 1: // 文本
+			partWriter, err := multipartWriter.CreateFormField(field.FieldName)
+			if err != nil {
+				return err
+			}
+			if _, err = io.Copy(partWriter, field.Value); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -99,31 +105,36 @@ RETRY:
 		return
 	}
 
-	// 请注意:
-	// 下面获取 ErrCode 的代码不具备通用性!!!
-	//
-	// 因为本 SDK 的 response 都是
-	//  struct {
-	//    Error
-	//    XXX
-	//  }
-	// 的结构, 所以用下面简单的方法得到 ErrCode.
-	//
-	// 如果你是直接调用这个函数, 那么要根据你的 response 数据结构修改下面的代码.
-	ErrCode := reflect.ValueOf(response).Elem().FieldByName("ErrCode").Int()
+	var ErrorStructValue reflect.Value // Error
 
-	switch ErrCode {
+	// 下面的代码对 response 有特定要求, 见此函数 NOTE
+	responseStructValue := reflect.ValueOf(response).Elem()
+	if v := responseStructValue.Field(0); v.Kind() == reflect.Struct {
+		ErrorStructValue = v
+	} else {
+		ErrorStructValue = responseStructValue
+	}
+
+	switch ErrCode := ErrorStructValue.Field(0).Int(); ErrCode {
 	case ErrCodeOK:
 		return
-	case ErrCodeInvalidCredential, ErrCodeTimeout:
+	case ErrCodeInvalidCredential, ErrCodeAccessTokenExpired:
+		ErrMsg := ErrorStructValue.Field(1).String()
+		LogInfoln("[WECHAT_RETRY] err_code:", ErrCode, ", err_msg:", ErrMsg)
+		LogInfoln("[WECHAT_RETRY] current token:", token)
+
 		if !hasRetried {
 			hasRetried = true
 
 			if token, err = clt.TokenRefresh(); err != nil {
 				return
 			}
+			LogInfoln("[WECHAT_RETRY] new token:", token)
+
+			responseStructValue.Set(reflect.New(responseStructValue.Type()).Elem())
 			goto RETRY
 		}
+		LogInfoln("[WECHAT_RETRY] fallthrough, current token:", token)
 		fallthrough
 	default:
 		return

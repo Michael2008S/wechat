@@ -16,9 +16,9 @@ const (
 // 高级群发消息, 事件推送群发结果
 type MassSendJobFinishEvent struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	mp.CommonMessageHeader
+	mp.MessageHeader
 
-	Event string `xml:"Event" json:"Event"` // 事件信息，此处为 MASSSENDJOBFINISH
+	Event string `xml:"Event" json:"Event"` // 事件信息, 此处为 MASSSENDJOBFINISH
 
 	MsgId int64 `xml:"MsgId" json:"MsgId"` // 群发的消息ID, 64位整型
 
@@ -38,7 +38,7 @@ type MassSendJobFinishEvent struct {
 
 	TotalCount int `xml:"TotalCount" json:"TotalCount"` // group_id 下粉丝数, 或者 openid_list 中的粉丝数
 
-	// 过滤(过滤是指特定地区, 性别的过滤, 用户设置拒收的过滤; 用户接收已超4条的过滤）后,
+	// 过滤(过滤是指特定地区, 性别的过滤, 用户设置拒收的过滤; 用户接收已超4条的过滤)后,
 	// 准备发送的粉丝数, 原则上, FilterCount = SentCount + ErrorCount
 	FilterCount int `xml:"FilterCount" json:"FilterCount"`
 	SentCount   int `xml:"SentCount"   json:"SentCount"`  // 发送成功的粉丝数
@@ -47,13 +47,13 @@ type MassSendJobFinishEvent struct {
 
 func GetMassSendJobFinishEvent(msg *mp.MixedMessage) *MassSendJobFinishEvent {
 	return &MassSendJobFinishEvent{
-		CommonMessageHeader: msg.CommonMessageHeader,
-		Event:               msg.Event,
-		MsgId:               msg.MsgID, // NOTE
-		Status:              msg.Status,
-		TotalCount:          msg.TotalCount,
-		FilterCount:         msg.FilterCount,
-		SentCount:           msg.SentCount,
-		ErrorCount:          msg.ErrorCount,
+		MessageHeader: msg.MessageHeader,
+		Event:         msg.Event,
+		MsgId:         msg.MsgID, // NOTE
+		Status:        msg.Status,
+		TotalCount:    msg.TotalCount,
+		FilterCount:   msg.FilterCount,
+		SentCount:     msg.SentCount,
+		ErrorCount:    msg.ErrorCount,
 	}
 }

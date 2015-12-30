@@ -11,26 +11,10 @@ import (
 	"github.com/chanxuehong/wechat/mp"
 )
 
-type Client struct {
-	mp.WechatClient
-}
+type Client mp.Client
 
-// 创建一个新的 Client.
-//  如果 HttpClient == nil 则默认用 http.DefaultClient
-func NewClient(TokenServer mp.TokenServer, HttpClient *http.Client) *Client {
-	if TokenServer == nil {
-		panic("TokenServer == nil")
-	}
-	if HttpClient == nil {
-		HttpClient = http.DefaultClient
-	}
-
-	return &Client{
-		WechatClient: mp.WechatClient{
-			TokenServer: TokenServer,
-			HttpClient:  HttpClient,
-		},
-	}
+func NewClient(srv mp.AccessTokenServer, clt *http.Client) *Client {
+	return (*Client)(mp.NewClient(srv, clt))
 }
 
 // 创建自定义菜单.
@@ -38,7 +22,7 @@ func (clt *Client) CreateMenu(menu Menu) (err error) {
 	var result mp.Error
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/menu/create?access_token="
-	if err = clt.PostJSON(incompleteURL, &menu, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &menu, &result); err != nil {
 		return
 	}
 
@@ -54,7 +38,7 @@ func (clt *Client) DeleteMenu() (err error) {
 	var result mp.Error
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/menu/delete?access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*mp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 
@@ -73,7 +57,7 @@ func (clt *Client) GetMenu() (menu Menu, err error) {
 	}
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/menu/get?access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*mp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 
@@ -82,5 +66,29 @@ func (clt *Client) GetMenu() (menu Menu, err error) {
 		return
 	}
 	menu = result.Menu
+	return
+}
+
+// 获取自定义菜单配置接口
+func (clt *Client) GetMenuInfo() (info MenuInfo, isMenuOpen bool, err error) {
+	var result struct {
+		mp.Error
+		IsMenuOpen int      `json:"is_menu_open"`
+		MenuInfo   MenuInfo `json:"selfmenu_info"`
+	}
+
+	incompleteURL := "https://api.weixin.qq.com/cgi-bin/get_current_selfmenu_info?access_token="
+	if err = ((*mp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
+		return
+	}
+
+	if result.ErrCode != mp.ErrCodeOK {
+		err = &result.Error
+		return
+	}
+	info = result.MenuInfo
+	if result.IsMenuOpen == 1 {
+		isMenuOpen = true
+	}
 	return
 }

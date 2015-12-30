@@ -6,14 +6,13 @@
 package mp
 
 import (
-	"io"
 	"net/http"
 	"net/url"
 )
 
 // 微信服务器推送过来的消息(事件)处理接口
 type MessageHandler interface {
-	ServeMessage(w http.ResponseWriter, r *Request)
+	ServeMessage(http.ResponseWriter, *Request)
 }
 
 type MessageHandlerFunc func(http.ResponseWriter, *Request)
@@ -22,52 +21,30 @@ func (fn MessageHandlerFunc) ServeMessage(w http.ResponseWriter, r *Request) {
 	fn(w, r)
 }
 
-type httpResponseWriter struct {
-	io.Writer
-}
-
-func (httpResponseWriter) Header() http.Header {
-	return make(map[string][]string)
-}
-func (httpResponseWriter) WriteHeader(int) {}
-
-// 将 io.Writer 从语义上实现 http.ResponseWriter.
-//  某些 http 框架可能没有提供 http.ResponseWriter, 而只是提供了 io.Writer.
-func HttpResponseWriter(w io.Writer) http.ResponseWriter {
-	if rw, ok := w.(http.ResponseWriter); ok {
-		return rw
-	}
-	return httpResponseWriter{Writer: w}
-}
-
 // 消息(事件)请求信息
 type Request struct {
+	Token string // 请求消息所属公众号的 Token
+
 	HttpRequest *http.Request // 可以为 nil, 因为某些 http 框架没有提供此参数
+	QueryValues url.Values    // 回调请求 URL 中的查询参数集合
 
-	// 下面的字段必须提供, 如果有的话
+	Signature string // 回调请求 URL 中的签名: signature
+	Timestamp int64  // 回调请求 URL 中的时间戳: timestamp
+	Nonce     string // 回调请求 URL 中的随机数: nonce
 
-	QueryValues url.Values // 回调请求 URL 中的查询参数集合
-	Signature   string     // 回调请求 URL URL 中的签名: signature
-	TimeStamp   int64      // 回调请求 URL URL 中的时间戳: timestamp
-	Nonce       string     // 回调请求 URL URL 中的随机数: nonce
-
-	RawMsgXML []byte        // "明文"消息的 XML 文本
-	MixedMsg  *MixedMessage // RawMsgXML 解析后的消息
+	EncryptType string        // 请求 URL 中的加密方式: encrypt_type
+	RawMsgXML   []byte        // 消息的 XML 文本, 对于加密模式是解密后的消息
+	MixedMsg    *MixedMessage // RawMsgXML 解析后的消息
 
 	// 下面的字段是 AES 模式才有的
 	MsgSignature string   // 请求 URL 中的消息体签名: msg_signature
-	EncryptType  string   // 请求 URL 中的加密方式: encrypt_type
 	AESKey       [32]byte // 当前消息 AES 加密的 key
 	Random       []byte   // 当前消息加密时所用的 random, 16 bytes
-
-	// 下面字段是公众号的基本信息
-	WechatId    string // 请求消息所属公众号的原始 ID, 等于 MixedMessage.ToUserName
-	WechatToken string // 请求消息所属公众号的 Token
-	WechatAppId string // 请求消息所属公众号的 AppId
+	AppId        string   // 当前消息加密时所用的 AppId
 }
 
 // 微信服务器推送过来的消息(事件)通用的消息头
-type CommonMessageHeader struct {
+type MessageHeader struct {
 	ToUserName   string `xml:"ToUserName"   json:"ToUserName"`
 	FromUserName string `xml:"FromUserName" json:"FromUserName"`
 	CreateTime   int64  `xml:"CreateTime"   json:"CreateTime"`
@@ -77,11 +54,10 @@ type CommonMessageHeader struct {
 // 微信服务器推送过来的消息(事件)的合集.
 type MixedMessage struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	CommonMessageHeader
+	MessageHeader
 
-	// fuck, MsgId != MsgID
 	MsgId int64 `xml:"MsgId" json:"MsgId"`
-	MsgID int64 `xml:"MsgID" json:"MsgID"`
+	MsgID int64 `xml:"MsgID" json:"MsgID"` // 群发消息和模板消息的消息ID, 而不是此事件消息的ID
 
 	Content      string  `xml:"Content"      json:"Content"`
 	MediaId      string  `xml:"MediaId"      json:"MediaId"`
@@ -117,7 +93,7 @@ type MixedMessage struct {
 		LocationY float64 `xml:"Location_Y" json:"Location_Y"`
 		Scale     int     `xml:"Scale"      json:"Scale"`
 		Label     string  `xml:"Label"      json:"Label"`
-		Poiname   string  `xml:"Poiname"    json:"Poiname"`
+		PoiName   string  `xml:"Poiname"    json:"Poiname"`
 	} `xml:"SendLocationInfo" json:"SendLocationInfo"`
 
 	Ticket      string  `xml:"Ticket"      json:"Ticket"`
@@ -129,14 +105,57 @@ type MixedMessage struct {
 	FilterCount int     `xml:"FilterCount" json:"FilterCount"`
 	SentCount   int     `xml:"SentCount"   json:"SentCount"`
 	ErrorCount  int     `xml:"ErrorCount"  json:"ErrorCount"`
-	OrderId     string  `xml:"OrderId"     json:"OrderId"`
-	OrderStatus int     `xml:"OrderStatus" json:"OrderStatus"`
-	ProductId   string  `xml:"ProductId"   json:"ProductId"`
-	SKUInfo     string  `xml:"SkuInfo"     json:"SkuInfo"`
 
-	CardId         string `xml:"CardId"         json:"CardId"`
-	IsGiveByFriend int    `xml:"IsGiveByFriend" json:"IsGiveByFriend"`
-	FriendUserName string `xml:"FriendUserName" json:"FriendUserName"`
-	UserCardCode   string `xml:"UserCardCode"   json:"UserCardCode"`
-	OuterId        int64  `xml:"OuterId"        json:"OuterId"`
+	// merchant
+	OrderId     string `xml:"OrderId"     json:"OrderId"`
+	OrderStatus int    `xml:"OrderStatus" json:"OrderStatus"`
+	ProductId   string `xml:"ProductId"   json:"ProductId"`
+	SKUInfo     string `xml:"SkuInfo"     json:"SkuInfo"`
+
+	// card
+	CardId          string `xml:"CardId"          json:"CardId"`
+	IsGiveByFriend  int    `xml:"IsGiveByFriend"  json:"IsGiveByFriend"`
+	FriendUserName  string `xml:"FriendUserName"  json:"FriendUserName"`
+	UserCardCode    string `xml:"UserCardCode"    json:"UserCardCode"`
+	OldUserCardCode string `xml:"OldUserCardCode" json:"OldUserCardCode"`
+	ConsumeSource   string `xml:"ConsumeSource"   json:"ConsumeSource"`
+	OuterId         int64  `xml:"OuterId"         json:"OuterId"`
+
+	// poi
+	UniqId string `xml:"UniqId" json:"UniqId"`
+	PoiId  int64  `xml:"PoiId"  json:"PoiId"`
+	Result string `xml:"Result" json:"Result"`
+	Msg    string `xml:"Msg"    json:"Msg"`
+
+	// dkf
+	KfAccount     string `xml:"KfAccount"     json:"KfAccount"`
+	FromKfAccount string `xml:"FromKfAccount" json:"FromKfAccount"`
+	ToKfAccount   string `xml:"ToKfAccount"   json:"ToKfAccount"`
+
+	// shakearound
+	ChosenBeacon  ChosenBeacon   `xml:"ChosenBeacon"                         json:"ChosenBeacon"`
+	AroundBeacons []AroundBeacon `xml:"AroundBeacons>AroundBeacon,omitempty" json:"AroundBeacons,omitempty"`
+
+	// bizwifi
+	ConnectTime int64  `xml:"ConnectTime" json:"ConnectTime"`
+	ExpireTime  int64  `xml:"ExpireTime"  json:"ExpireTime"`
+	VendorId    string `xml:"VendorId"    json:"VendorId"`
+	PlaceId     int64  `xml:"PlaceId"     json:"PlaceId"`
+	DeviceNo    string `xml:"DeviceNo"    json:"DeviceNo"`
+}
+
+// 和 github.com/chanxuehong/wechat/mp/shakearound.ChosenBeacon 一样, 同步修改
+type ChosenBeacon struct {
+	UUID     string  `xml:"Uuid"     json:"Uuid"`
+	Major    int     `xml:"Major"    json:"Major"`
+	Minor    int     `xml:"Minor"    json:"Minor"`
+	Distance float64 `xml:"Distance" json:"Distance"`
+}
+
+// 和 github.com/chanxuehong/wechat/mp/shakearound.AroundBeacon 一样, 同步修改
+type AroundBeacon struct {
+	UUID     string  `xml:"Uuid"     json:"Uuid"`
+	Major    int     `xml:"Major"    json:"Major"`
+	Minor    int     `xml:"Minor"    json:"Minor"`
+	Distance float64 `xml:"Distance" json:"Distance"`
 }

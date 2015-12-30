@@ -91,7 +91,13 @@ func (clt *Client) uploadMediaFromReader(mediaType, filename string, reader io.R
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/media/upload?type=" +
 		url.QueryEscape(mediaType) + "&access_token="
-	if err = clt.UploadFromReader(incompleteURL, "media", filename, reader, "", nil, &result); err != nil {
+	fields := []mp.MultipartFormField{{
+		ContentType: 0,
+		FieldName:   "media",
+		FileName:    filename,
+		Value:       reader,
+	}}
+	if err = ((*mp.Client)(clt)).PostMultipartForm(incompleteURL, fields, &result); err != nil {
 		return
 	}
 
@@ -139,7 +145,13 @@ func (clt *Client) uploadThumbFromReader(filename string, reader io.Reader) (inf
 	}
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/media/upload?type=thumb&access_token="
-	if err = clt.UploadFromReader(incompleteURL, "media", filename, reader, "", nil, &result); err != nil {
+	fields := []mp.MultipartFormField{{
+		ContentType: 0,
+		FieldName:   "media",
+		FileName:    filename,
+		Value:       reader,
+	}}
+	if err = ((*mp.Client)(clt)).PostMultipartForm(incompleteURL, fields, &result); err != nil {
 		return
 	}
 

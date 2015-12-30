@@ -11,9 +11,8 @@ import (
 	"github.com/chanxuehong/wechat/mp"
 )
 
-const GroupCountLimit = 100 // 一个公众账号，最多支持创建100个分组。
+const GroupCountLimit = 100 // 一个公众账号, 最多支持创建100个分组
 
-// 用户分组
 type Group struct {
 	Id        int64  `json:"id"`    // 分组id, 由微信分配
 	Name      string `json:"name"`  // 分组名字, UTF8编码
@@ -21,7 +20,7 @@ type Group struct {
 }
 
 // 创建分组.
-//  name: 分组名字（30个字符以内）
+//  name: 分组名字(30个字符以内)
 func (clt *Client) GroupCreate(name string) (group *Group, err error) {
 	if name == "" {
 		err = errors.New("empty name")
@@ -41,7 +40,7 @@ func (clt *Client) GroupCreate(name string) (group *Group, err error) {
 	}
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/create?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -54,30 +53,32 @@ func (clt *Client) GroupCreate(name string) (group *Group, err error) {
 	return
 }
 
-// 查询所有分组.
-func (clt *Client) GroupList() (groups []Group, err error) {
-	var result = struct {
-		mp.Error
-		Groups []Group `json:"groups"`
-	}{
-		Groups: make([]Group, 0, 16),
+// 删除分组.
+//  注意本接口是删除一个用户分组, 删除分组后, 所有该分组内的用户自动进入默认分组
+func (clt *Client) GroupDelete(groupId int64) (err error) {
+	var request struct {
+		Group struct {
+			Id int64 `json:"id"`
+		} `json:"group"`
 	}
+	request.Group.Id = groupId
 
-	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/get?access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	var result mp.Error
+
+	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/delete?access_token="
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
 	if result.ErrCode != mp.ErrCodeOK {
-		err = &result.Error
+		err = &result
 		return
 	}
-	groups = result.Groups
 	return
 }
 
 // 修改分组名.
-//  name: 分组名字（30个字符以内）.
+//  name: 分组名字(30个字符以内).
 func (clt *Client) GroupUpdate(groupId int64, newName string) (err error) {
 	if newName == "" {
 		err = errors.New("empty newName")
@@ -96,7 +97,7 @@ func (clt *Client) GroupUpdate(groupId int64, newName string) (err error) {
 	var result mp.Error
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/update?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -104,6 +105,26 @@ func (clt *Client) GroupUpdate(groupId int64, newName string) (err error) {
 		err = &result
 		return
 	}
+	return
+}
+
+// 查询所有分组.
+func (clt *Client) GroupList() (groups []Group, err error) {
+	var result struct {
+		mp.Error
+		Groups []Group `json:"groups"`
+	}
+
+	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/get?access_token="
+	if err = ((*mp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
+		return
+	}
+
+	if result.ErrCode != mp.ErrCodeOK {
+		err = &result.Error
+		return
+	}
+	groups = result.Groups
 	return
 }
 
@@ -121,7 +142,7 @@ func (clt *Client) UserInWhichGroup(openId string) (groupId int64, err error) {
 	}
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/getid?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -146,7 +167,7 @@ func (clt *Client) MoveUserToGroup(openId string, toGroupId int64) (err error) {
 	var result mp.Error
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/members/update?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -158,7 +179,7 @@ func (clt *Client) MoveUserToGroup(openId string, toGroupId int64) (err error) {
 }
 
 // 批量移动用户分组.
-func (clt *Client) MoveUsersToGroup(openIdList []string, toGroupId int64) (err error) {
+func (clt *Client) BatchMoveUserToGroup(openIdList []string, toGroupId int64) (err error) {
 	if len(openIdList) <= 0 {
 		return
 	}
@@ -174,7 +195,7 @@ func (clt *Client) MoveUsersToGroup(openIdList []string, toGroupId int64) (err e
 	var result mp.Error
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/groups/members/batchupdate?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 

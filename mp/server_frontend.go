@@ -10,36 +10,39 @@ import (
 	"net/url"
 )
 
-// 实现了 http.Handler, 处理一个公众号的消息(事件)请求.
-type WechatServerFrontend struct {
-	wechatServer          WechatServer
-	invalidRequestHandler InvalidRequestHandler
+// ServerFrontend 实现了 http.Handler, 处理一个公众号的消息(事件)请求.
+type ServerFrontend struct {
+	server      Server
+	errHandler  ErrorHandler
+	interceptor Interceptor
 }
 
-func NewWechatServerFrontend(server WechatServer, handler InvalidRequestHandler) *WechatServerFrontend {
+// NOTE: errHandler, interceptor 均可以为 nil
+func NewServerFrontend(server Server, errHandler ErrorHandler, interceptor Interceptor) *ServerFrontend {
 	if server == nil {
-		panic("mp: nil WechatServer")
+		panic("nil Server")
 	}
-	if handler == nil {
-		handler = DefaultInvalidRequestHandler
+	if errHandler == nil {
+		errHandler = DefaultErrorHandler
 	}
 
-	return &WechatServerFrontend{
-		wechatServer:          server,
-		invalidRequestHandler: handler,
+	return &ServerFrontend{
+		server:      server,
+		errHandler:  errHandler,
+		interceptor: interceptor,
 	}
 }
 
-// 实现 http.Handler.
-func (frontend *WechatServerFrontend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	wechatServer := frontend.wechatServer
-	invalidRequestHandler := frontend.invalidRequestHandler
-
-	urlValues, err := url.ParseQuery(r.URL.RawQuery)
+func (frontend *ServerFrontend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		invalidRequestHandler.ServeInvalidRequest(w, r, err)
+		frontend.errHandler.ServeError(w, r, err)
 		return
 	}
 
-	ServeHTTP(w, r, urlValues, wechatServer, invalidRequestHandler)
+	if interceptor := frontend.interceptor; interceptor != nil && !interceptor.Intercept(w, r, queryValues) {
+		return
+	}
+
+	ServeHTTP(w, r, queryValues, frontend.server, frontend.errHandler)
 }

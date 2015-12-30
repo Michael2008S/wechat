@@ -19,7 +19,7 @@ const (
 	MsgTypeNews  = "news"  // 图文消息
 )
 
-type CommonMessageHeader struct {
+type MessageHeader struct {
 	ToUserName   string `xml:"ToUserName"   json:"ToUserName"`
 	FromUserName string `xml:"FromUserName" json:"FromUserName"`
 	CreateTime   int64  `xml:"CreateTime"   json:"CreateTime"`
@@ -28,14 +28,14 @@ type CommonMessageHeader struct {
 
 type Text struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	CommonMessageHeader
+	MessageHeader
 
 	Content string `xml:"Content" json:"Content"` // 文本消息内容
 }
 
 func NewText(to, from string, timestamp int64, content string) (text *Text) {
 	return &Text{
-		CommonMessageHeader: CommonMessageHeader{
+		MessageHeader: MessageHeader{
 			ToUserName:   to,
 			FromUserName: from,
 			CreateTime:   timestamp,
@@ -47,16 +47,16 @@ func NewText(to, from string, timestamp int64, content string) (text *Text) {
 
 type Image struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	CommonMessageHeader
+	MessageHeader
 
 	Image struct {
-		MediaId string `xml:"MediaId" json:"MediaId"` // 图片文件id，可以调用上传媒体文件接口获取
+		MediaId string `xml:"MediaId" json:"MediaId"` // 图片文件id, 可以调用上传媒体文件接口获取
 	} `xml:"Image" json:"Image"`
 }
 
 func NewImage(to, from string, timestamp int64, mediaId string) (image *Image) {
 	image = &Image{
-		CommonMessageHeader: CommonMessageHeader{
+		MessageHeader: MessageHeader{
 			ToUserName:   to,
 			FromUserName: from,
 			CreateTime:   timestamp,
@@ -69,16 +69,16 @@ func NewImage(to, from string, timestamp int64, mediaId string) (image *Image) {
 
 type Voice struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	CommonMessageHeader
+	MessageHeader
 
 	Voice struct {
-		MediaId string `xml:"MediaId" json:"MediaId"` // 语音文件id，可以调用上传媒体文件接口获取
+		MediaId string `xml:"MediaId" json:"MediaId"` // 语音文件id, 可以调用上传媒体文件接口获取
 	} `xml:"Voice" json:"Voice"`
 }
 
 func NewVoice(to, from string, timestamp int64, mediaId string) (voice *Voice) {
 	voice = &Voice{
-		CommonMessageHeader: CommonMessageHeader{
+		MessageHeader: MessageHeader{
 			ToUserName:   to,
 			FromUserName: from,
 			CreateTime:   timestamp,
@@ -91,10 +91,10 @@ func NewVoice(to, from string, timestamp int64, mediaId string) (voice *Voice) {
 
 type Video struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	CommonMessageHeader
+	MessageHeader
 
 	Video struct {
-		MediaId     string `xml:"MediaId"               json:"MediaId"`               // 视频文件id，可以调用上传媒体文件接口获取
+		MediaId     string `xml:"MediaId"               json:"MediaId"`               // 视频文件id, 可以调用上传媒体文件接口获取
 		Title       string `xml:"Title,omitempty"       json:"Title,omitempty"`       // 视频消息的标题
 		Description string `xml:"Description,omitempty" json:"Description,omitempty"` // 视频消息的描述
 	} `xml:"Video" json:"Video"`
@@ -102,7 +102,7 @@ type Video struct {
 
 func NewVideo(to, from string, timestamp int64, mediaId, title, description string) (video *Video) {
 	video = &Video{
-		CommonMessageHeader: CommonMessageHeader{
+		MessageHeader: MessageHeader{
 			ToUserName:   to,
 			FromUserName: from,
 			CreateTime:   timestamp,
@@ -118,7 +118,7 @@ func NewVideo(to, from string, timestamp int64, mediaId, title, description stri
 type Article struct {
 	Title       string `xml:"Title,omitempty"       json:"Title,omitempty"`       // 图文消息标题
 	Description string `xml:"Description,omitempty" json:"Description,omitempty"` // 图文消息描述
-	PicURL      string `xml:"PicUrl,omitempty"      json:"PicUrl,omitempty"`      // 图片链接，支持JPG、PNG格式，较好的效果为大图360*200，小图200*200
+	PicURL      string `xml:"PicUrl,omitempty"      json:"PicUrl,omitempty"`      // 图片链接, 支持JPG, PNG格式, 较好的效果为大图360*200, 小图200*200
 	URL         string `xml:"Url,omitempty"         json:"Url,omitempty"`         // 点击图文消息跳转链接
 }
 
@@ -128,15 +128,15 @@ const (
 
 type News struct {
 	XMLName struct{} `xml:"xml" json:"-"`
-	CommonMessageHeader
+	MessageHeader
 
-	ArticleCount int       `xml:"ArticleCount"            json:"ArticleCount"` // 图文条数，默认第一条为大图。图文数不能超过10，否则将会无响应
+	ArticleCount int       `xml:"ArticleCount"            json:"ArticleCount"` // 图文条数, 默认第一条为大图. 图文数不能超过10, 否则将会无响应
 	Articles     []Article `xml:"Articles>item,omitempty" json:"Articles,omitempty"`
 }
 
 func NewNews(to, from string, timestamp int64, articles []Article) (news *News) {
 	news = &News{
-		CommonMessageHeader: CommonMessageHeader{
+		MessageHeader: MessageHeader{
 			ToUserName:   to,
 			FromUserName: from,
 			CreateTime:   timestamp,
@@ -148,7 +148,7 @@ func NewNews(to, from string, timestamp int64, articles []Article) (news *News) 
 	return
 }
 
-// 检查 News 是否有效，有效返回 nil，否则返回错误信息
+// 检查 News 是否有效, 有效返回 nil, 否则返回错误信息
 func (news *News) CheckValid() (err error) {
 	n := len(news.Articles)
 	if n != news.ArticleCount {

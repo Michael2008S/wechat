@@ -12,26 +12,10 @@ import (
 	"github.com/chanxuehong/wechat/mp"
 )
 
-type Client struct {
-	mp.WechatClient
-}
+type Client mp.Client
 
-// 创建一个新的 Client.
-//  如果 HttpClient == nil 则默认用 http.DefaultClient
-func NewClient(TokenServer mp.TokenServer, HttpClient *http.Client) *Client {
-	if TokenServer == nil {
-		panic("TokenServer == nil")
-	}
-	if HttpClient == nil {
-		HttpClient = http.DefaultClient
-	}
-
-	return &Client{
-		WechatClient: mp.WechatClient{
-			TokenServer: TokenServer,
-			HttpClient:  HttpClient,
-		},
-	}
+func NewClient(srv mp.AccessTokenServer, clt *http.Client) *Client {
+	return (*Client)(mp.NewClient(srv, clt))
 }
 
 // 发送客服消息, 文本.
@@ -85,11 +69,19 @@ func (clt *Client) SendNews(msg *News) (err error) {
 	return clt.send(msg)
 }
 
+// 发送客服消息, 卡卷.
+func (clt *Client) SendWxCard(msg *WxCard) (err error) {
+	if msg == nil {
+		return errors.New("msg == nil")
+	}
+	return clt.send(msg)
+}
+
 func (clt *Client) send(msg interface{}) (err error) {
 	var result mp.Error
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token="
-	if err = clt.PostJSON(incompleteURL, msg, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, msg, &result); err != nil {
 		return
 	}
 

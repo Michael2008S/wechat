@@ -12,26 +12,10 @@ import (
 	"github.com/chanxuehong/wechat/mp"
 )
 
-type Client struct {
-	mp.WechatClient
-}
+type Client mp.Client
 
-// 创建一个新的 Client.
-//  如果 HttpClient == nil 则默认用 http.DefaultClient
-func NewClient(TokenServer mp.TokenServer, HttpClient *http.Client) *Client {
-	if TokenServer == nil {
-		panic("TokenServer == nil")
-	}
-	if HttpClient == nil {
-		HttpClient = http.DefaultClient
-	}
-
-	return &Client{
-		WechatClient: mp.WechatClient{
-			TokenServer: TokenServer,
-			HttpClient:  HttpClient,
-		},
-	}
+func NewClient(srv mp.AccessTokenServer, clt *http.Client) *Client {
+	return (*Client)(mp.NewClient(srv, clt))
 }
 
 // 设置所属行业.
@@ -52,7 +36,7 @@ func (clt *Client) SetIndustry(industryId ...int64) (err error) {
 	var result mp.Error
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/template/api_set_industry?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -64,7 +48,7 @@ func (clt *Client) SetIndustry(industryId ...int64) (err error) {
 }
 
 // 从行业模板库选择模板添加到账号后台, 并返回模板id.
-//  templateIdShort: 模板库中模板的编号，有“TM**”和“OPENTMTM**”等形式.
+//  templateIdShort: 模板库中模板的编号, 有"TM**"和"OPENTMTM**"等形式.
 func (clt *Client) AddTemplate(templateIdShort string) (templateId string, err error) {
 	var request = struct {
 		TemplateIdShort string `json:"template_id_short"`
@@ -78,7 +62,7 @@ func (clt *Client) AddTemplate(templateIdShort string) (templateId string, err e
 	}
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/template/api_add_template?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -103,7 +87,7 @@ func (clt *Client) Send(msg *TemplateMessage) (msgid int64, err error) {
 	}
 
 	incompleteURL := "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="
-	if err = clt.PostJSON(incompleteURL, msg, &result); err != nil {
+	if err = ((*mp.Client)(clt)).PostJSON(incompleteURL, msg, &result); err != nil {
 		return
 	}
 

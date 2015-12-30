@@ -12,26 +12,10 @@ import (
 	"github.com/chanxuehong/wechat/corp"
 )
 
-type Client struct {
-	corp.CorpClient
-}
+type Client corp.Client
 
-// 创建一个新的 Client.
-//  如果 HttpClient == nil 则默认用 http.DefaultClient
-func NewClient(TokenServer corp.TokenServer, HttpClient *http.Client) *Client {
-	if TokenServer == nil {
-		panic("TokenServer == nil")
-	}
-	if HttpClient == nil {
-		HttpClient = http.DefaultClient
-	}
-
-	return &Client{
-		CorpClient: corp.CorpClient{
-			TokenServer: TokenServer,
-			HttpClient:  HttpClient,
-		},
-	}
+func NewClient(srv corp.AccessTokenServer, clt *http.Client) *Client {
+	return (*Client)(corp.NewClient(srv, clt))
 }
 
 // 创建自定义菜单.
@@ -40,7 +24,7 @@ func (clt *Client) CreateMenu(agentId int64, menu Menu) (err error) {
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/menu/create?agentid=" +
 		strconv.FormatInt(agentId, 10) + "&access_token="
-	if err = clt.PostJSON(incompleteURL, &menu, &result); err != nil {
+	if err = ((*corp.Client)(clt)).PostJSON(incompleteURL, &menu, &result); err != nil {
 		return
 	}
 
@@ -57,7 +41,7 @@ func (clt *Client) DeleteMenu(agentId int64) (err error) {
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/menu/delete?agentid=" +
 		strconv.FormatInt(agentId, 10) + "&access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*corp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 
@@ -77,7 +61,7 @@ func (clt *Client) GetMenu(agentId int64) (menu Menu, err error) {
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/menu/get?agentid=" +
 		strconv.FormatInt(agentId, 10) + "&access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*corp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 

@@ -12,26 +12,10 @@ import (
 	"github.com/chanxuehong/wechat/corp"
 )
 
-type Client struct {
-	corp.CorpClient
-}
+type Client corp.Client
 
-// 创建一个新的 Client.
-//  如果 HttpClient == nil 则默认用 http.DefaultClient
-func NewClient(TokenServer corp.TokenServer, HttpClient *http.Client) *Client {
-	if TokenServer == nil {
-		panic("TokenServer == nil")
-	}
-	if HttpClient == nil {
-		HttpClient = http.DefaultClient
-	}
-
-	return &Client{
-		CorpClient: corp.CorpClient{
-			TokenServer: TokenServer,
-			HttpClient:  HttpClient,
-		},
-	}
+func NewClient(srv corp.AccessTokenServer, clt *http.Client) *Client {
+	return (*Client)(corp.NewClient(srv, clt))
 }
 
 // 发送消息返回的数据结构
@@ -110,7 +94,7 @@ func (clt *Client) send(msg interface{}) (r *Result, err error) {
 	}
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token="
-	if err = clt.PostJSON(incompleteURL, msg, &result); err != nil {
+	if err = ((*corp.Client)(clt)).PostJSON(incompleteURL, msg, &result); err != nil {
 		return
 	}
 

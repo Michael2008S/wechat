@@ -26,7 +26,7 @@ func (clt *Client) TagCreate(tagName string) (id int64, err error) {
 	}
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/tag/create?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*corp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -51,7 +51,7 @@ func (clt *Client) TagUpdate(id int64, name string) (err error) {
 	var result corp.Error
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/tag/update?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*corp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -68,7 +68,7 @@ func (clt *Client) TagDelete(id int64) (err error) {
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/tag/delete?tagid=" +
 		strconv.FormatInt(id, 10) + "&access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*corp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 
@@ -89,7 +89,7 @@ func (clt *Client) TagInfo(id int64) (userList []UserBaseInfo, departmentList []
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/tag/get?tagid=" +
 		strconv.FormatInt(id, 10) + "&access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*corp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 
@@ -127,7 +127,7 @@ func (clt *Client) TagAddUser(id int64, userList []string,
 	}
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/tag/addtagusers?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*corp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -173,7 +173,7 @@ func (clt *Client) TagDeleteUser(id int64, userList []string,
 	}
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/tag/deltagusers?access_token="
-	if err = clt.PostJSON(incompleteURL, &request, &result); err != nil {
+	if err = ((*corp.Client)(clt)).PostJSON(incompleteURL, &request, &result); err != nil {
 		return
 	}
 
@@ -207,7 +207,7 @@ func (clt *Client) TagList() (list []Tag, err error) {
 	}
 
 	incompleteURL := "https://qyapi.weixin.qq.com/cgi-bin/tag/list?access_token="
-	if err = clt.GetJSON(incompleteURL, &result); err != nil {
+	if err = ((*corp.Client)(clt)).GetJSON(incompleteURL, &result); err != nil {
 		return
 	}
 
